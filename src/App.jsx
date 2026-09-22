@@ -326,9 +326,9 @@ function App() {
 
     const cleanCode = roomInput.trim();
 
-    if (!/^\d{6}$/.test(cleanCode)) {
+    if (!/^[A-Za-z0-9]{6,12}$/.test(cleanCode)) {
       alert(
-        "Room Code exactly 6 digits ka hona chahiye."
+        "Room Code exactly 6-12 digits ka hona chahiye."
       );
       return;
     }
@@ -880,14 +880,14 @@ function App() {
 
               <input
                 type="text"
-                inputMode="numeric"
-                maxLength="6"
-                placeholder="123456"
+                inputMode="text"
+                maxLength="12"
+                placeholder="Enter room code"
                 value={roomInput}
                 onChange={(e) =>
                   setRoomInput(
                     e.target.value.replace(
-                      /\D/g,
+                      /[^a-zA-Z0-9]/g,
                       ""
                     )
                   )
