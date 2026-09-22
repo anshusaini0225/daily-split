@@ -1,4 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+
 import "./App.css";
 
 import {
@@ -39,65 +45,187 @@ function App() {
   const [roomError, setRoomError] = useState("");
 
   const [roomCode, setRoomCode] = useState(() => {
-    return localStorage.getItem("dailySplitRoom") || DEFAULT_ROOM;
+    return (
+      localStorage.getItem("dailySplitRoom") ||
+      DEFAULT_ROOM
+    );
   });
 
   const [roomInput, setRoomInput] = useState(() => {
-    return localStorage.getItem("dailySplitRoom") || DEFAULT_ROOM;
+    return (
+      localStorage.getItem("dailySplitRoom") ||
+      DEFAULT_ROOM
+    );
   });
 
-  const [people, setPeople] = useState(DEFAULT_PEOPLE);
+  const [people, setPeople] = useState(
+    DEFAULT_PEOPLE
+  );
+
   const [expenses, setExpenses] = useState([]);
 
   const [amount, setAmount] = useState("");
-  const [description, setDescription] = useState("");
+  const [description, setDescription] =
+    useState("");
   const [paidBy, setPaidBy] = useState(0);
 
   const [date, setDate] = useState(
     new Date().toISOString().split("T")[0]
   );
 
-  const [selectedMonth, setSelectedMonth] = useState(
-    new Date().toISOString().slice(0, 7)
-  );
+  const [selectedMonth, setSelectedMonth] =
+    useState(
+      new Date().toISOString().slice(0, 7)
+    );
 
-  const [editingId, setEditingId] = useState(null);
+  const [editingId, setEditingId] =
+    useState(null);
 
-  // Firebase authentication listener
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      if (currentUser?.isAnonymous) {
-        try {
-          await signOut(auth);
-        } catch (error) {
-          console.error("Anonymous logout error:", error);
-        }
-  
-        setUser(null);
-        setFirebaseReady(false);
-        return;
+  // ==================================================
+  // NOTIFICATIONS
+  // ==================================================
+
+  const [notifications, setNotifications] =
+    useState([]);
+
+  const [notificationEnabled, setNotificationEnabled] =
+    useState(false);
+
+  const [showNotifications, setShowNotifications] =
+    useState(false);
+
+  const [readNotificationIds, setReadNotificationIds] =
+    useState(() => {
+      try {
+        const saved = localStorage.getItem(
+          "dailySplitReadNotifications"
+        );
+
+        return saved
+          ? JSON.parse(saved)
+          : [];
+      } catch {
+        return [];
       }
-  
-      setUser(currentUser);
-      setFirebaseReady(Boolean(currentUser));
     });
-  
+
+  const notificationInitialized =
+    useRef(false);
+
+  // ==================================================
+  // AUTH LISTENER
+  // ==================================================
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(
+      auth,
+      async (currentUser) => {
+        if (currentUser?.isAnonymous) {
+          try {
+            await signOut(auth);
+          } catch (error) {
+            console.error(
+              "Anonymous logout error:",
+              error
+            );
+          }
+
+          setUser(null);
+          setFirebaseReady(false);
+          return;
+        }
+
+        setUser(currentUser);
+        setFirebaseReady(
+          Boolean(currentUser)
+        );
+      }
+    );
+
     return () => unsubscribe();
   }, []);
 
-  // Save room locally
+  // ==================================================
+  // SAVE ROOM LOCALLY
+  // ==================================================
+
   useEffect(() => {
-    localStorage.setItem("dailySplitRoom", roomCode);
+    localStorage.setItem(
+      "dailySplitRoom",
+      roomCode
+    );
   }, [roomCode]);
 
-  // Listen to room data
+  // ==================================================
+  // NOTIFICATION PERMISSION
+  // ==================================================
+
+  useEffect(() => {
+    if (
+      "Notification" in window &&
+      Notification.permission === "granted"
+    ) {
+      setNotificationEnabled(true);
+    }
+  }, [user]);
+
+  async function enableNotifications() {
+    if (!user) {
+      alert("Pehle login karo.");
+      return;
+    }
+
+    if (!("Notification" in window)) {
+      alert(
+        "Is browser/device me notifications supported nahi hain."
+      );
+      return;
+    }
+
+    try {
+      const permission =
+        await Notification.requestPermission();
+
+      if (permission === "granted") {
+        setNotificationEnabled(true);
+
+        alert(
+          "🔔 Notifications successfully enabled!"
+        );
+      } else {
+        setNotificationEnabled(false);
+
+        alert(
+          "Notification permission allow nahi hui."
+        );
+      }
+    } catch (error) {
+      console.error(
+        "Notification permission error:",
+        error
+      );
+
+      alert(
+        "Notification permission enable nahi ho payi."
+      );
+    }
+  }
+
+  // ==================================================
+  // ROOM LISTENER
+  // ==================================================
+
   useEffect(() => {
     if (!user || !roomCode) return;
 
     setRoomError("");
     setRoomExists(false);
 
-    const roomRef = doc(db, "rooms", roomCode);
+    const roomRef = doc(
+      db,
+      "rooms",
+      roomCode
+    );
 
     const unsubscribe = onSnapshot(
       roomRef,
@@ -117,14 +245,20 @@ function App() {
           setRoomExists(false);
           setPeople(DEFAULT_PEOPLE);
           setExpenses([]);
+
           setRoomError(
             "Ye room abhi Firebase me exist nahi karta."
           );
         }
       },
       (error) => {
-        console.error("Room listener error:", error);
+        console.error(
+          "Room listener error:",
+          error
+        );
+
         setRoomExists(false);
+
         setRoomError(
           "Room access nahi mil raha. Firebase permissions check karo."
         );
@@ -134,9 +268,18 @@ function App() {
     return () => unsubscribe();
   }, [user, roomCode]);
 
-  // Listen to expenses in realtime
+  // ==================================================
+  // EXPENSE LISTENER
+  // ==================================================
+
   useEffect(() => {
-    if (!user || !roomCode || !roomExists) return;
+    if (
+      !user ||
+      !roomCode ||
+      !roomExists
+    ) {
+      return;
+    }
 
     const expensesRef = collection(
       db,
@@ -153,31 +296,256 @@ function App() {
     const unsubscribe = onSnapshot(
       expensesQuery,
       (snapshot) => {
-        const firebaseExpenses = snapshot.docs.map((item) => ({
-          id: item.id,
-          ...item.data(),
-        }));
+        const firebaseExpenses =
+          snapshot.docs.map((item) => ({
+            id: item.id,
+            ...item.data(),
+          }));
 
         setExpenses(firebaseExpenses);
       },
       (error) => {
-        console.error("Expense listener error:", error);
+        console.error(
+          "Expense listener error:",
+          error
+        );
       }
     );
 
     return () => unsubscribe();
-  }, [user, roomCode, roomExists]);
+  }, [
+    user,
+    roomCode,
+    roomExists,
+  ]);
 
-  // Authentication
+  // ==================================================
+  // NOTIFICATION LISTENER
+  // ==================================================
+
+  useEffect(() => {
+    if (
+      !user ||
+      !roomCode ||
+      !roomExists
+    ) {
+      return;
+    }
+
+    notificationInitialized.current =
+      false;
+
+    const notificationsRef =
+      collection(
+        db,
+        "rooms",
+        roomCode,
+        "notifications"
+      );
+
+    const notificationsQuery = query(
+      notificationsRef,
+      orderBy("createdAt", "desc")
+    );
+
+    const unsubscribe = onSnapshot(
+      notificationsQuery,
+      (snapshot) => {
+        const allNotifications =
+          snapshot.docs.map((item) => ({
+            id: item.id,
+            ...item.data(),
+          }));
+
+        // Apni notification hata do
+        const otherNotifications =
+          allNotifications.filter(
+            (notification) =>
+              notification.createdBy !==
+              user.uid
+          );
+
+        setNotifications(
+          otherNotifications
+        );
+
+        // First load par old notifications
+        // ke browser popups nahi dikhayenge
+        if (
+          !notificationInitialized.current
+        ) {
+          notificationInitialized.current =
+            true;
+
+          return;
+        }
+
+        // Sirf naye notification docs
+        snapshot.docChanges().forEach(
+          (change) => {
+            if (
+              change.type !== "added"
+            ) {
+              return;
+            }
+
+            const notification =
+              {
+                id: change.doc.id,
+                ...change.doc.data(),
+              };
+
+            // Apni notification nahi
+            if (
+              notification.createdBy ===
+              user.uid
+            ) {
+              return;
+            }
+
+            // Browser notification
+            if (
+              "Notification" in
+                window &&
+              Notification.permission ===
+                "granted"
+            ) {
+              new Notification(
+                "Daily Split 🔔",
+                {
+                  body:
+                    notification.message ||
+                    "Expense me update hua hai.",
+                  icon: "/pwa-192.png",
+                  badge:
+                    "/pwa-192.png",
+                }
+              );
+            }
+          }
+        );
+      },
+      (error) => {
+        console.error(
+          "Notification listener error:",
+          error
+        );
+      }
+    );
+
+    return () => unsubscribe();
+  }, [
+    user,
+    roomCode,
+    roomExists,
+  ]);
+
+  // ==================================================
+  // UNREAD COUNT
+  // ==================================================
+
+  const unreadNotifications =
+    notifications.filter(
+      (notification) =>
+        !readNotificationIds.includes(
+          notification.id
+        )
+    );
+
+  // ==================================================
+  // MARK NOTIFICATIONS AS READ
+  // ==================================================
+
+  function markNotificationsAsRead() {
+    const ids = notifications.map(
+      (notification) =>
+        notification.id
+    );
+
+    const updatedIds = [
+      ...new Set([
+        ...readNotificationIds,
+        ...ids,
+      ]),
+    ];
+
+    setReadNotificationIds(
+      updatedIds
+    );
+
+    localStorage.setItem(
+      "dailySplitReadNotifications",
+      JSON.stringify(updatedIds)
+    );
+  }
+
+  // ==================================================
+  // CREATE NOTIFICATION
+  // ==================================================
+
+  async function createExpenseNotification({
+    type,
+    expense,
+    message,
+  }) {
+    if (!user || !roomExists) {
+      return;
+    }
+
+    try {
+      await addDoc(
+        collection(
+          db,
+          "rooms",
+          roomCode,
+          "notifications"
+        ),
+        {
+          type,
+          message,
+
+          amount: Number(
+            expense.amount || 0
+          ),
+
+          description:
+            expense.description ||
+            "",
+
+          paidBy:
+            expense.paidBy || "",
+
+          createdBy: user.uid,
+
+          createdAt:
+            new Date().toISOString(),
+        }
+      );
+    } catch (error) {
+      console.error(
+        "Notification create error:",
+        error
+      );
+    }
+  }
+
+  // ==================================================
+  // AUTHENTICATION
+  // ==================================================
+
   async function handleAuth(e) {
     e.preventDefault();
 
     setAuthError("");
 
-    const cleanEmail = email.trim();
+    const cleanEmail =
+      email.trim();
 
     if (!cleanEmail || !password) {
-      setAuthError("Email aur password dono enter karo.");
+      setAuthError(
+        "Email aur password dono enter karo."
+      );
+
       return;
     }
 
@@ -185,6 +553,7 @@ function App() {
       setAuthError(
         "Password kam se kam 6 characters ka hona chahiye."
       );
+
       return;
     }
 
@@ -209,25 +578,47 @@ function App() {
       setPassword("");
       setAuthError("");
     } catch (error) {
-      console.error("Authentication error:", error);
+      console.error(
+        "Authentication error:",
+        error
+      );
 
-      if (error.code === "auth/email-already-in-use") {
-        setAuthError("Ye email already registered hai.");
-      } else if (
-        error.code === "auth/invalid-credential" ||
-        error.code === "auth/wrong-password" ||
-        error.code === "auth/user-not-found"
+      if (
+        error.code ===
+        "auth/email-already-in-use"
       ) {
-        setAuthError("Email ya password galat hai.");
-      } else if (error.code === "auth/weak-password") {
+        setAuthError(
+          "Ye email already registered hai."
+        );
+      } else if (
+        error.code ===
+          "auth/invalid-credential" ||
+        error.code ===
+          "auth/wrong-password" ||
+        error.code ===
+          "auth/user-not-found"
+      ) {
+        setAuthError(
+          "Email ya password galat hai."
+        );
+      } else if (
+        error.code ===
+        "auth/weak-password"
+      ) {
         setAuthError(
           "Password kam se kam 6 characters ka hona chahiye."
         );
-      } else if (error.code === "auth/invalid-email") {
-        setAuthError("Valid email address enter karo.");
+      } else if (
+        error.code ===
+        "auth/invalid-email"
+      ) {
+        setAuthError(
+          "Valid email address enter karo."
+        );
       } else {
         setAuthError(
-          error.message || "Login/signup failed."
+          error.message ||
+            "Login/signup failed."
         );
       }
     } finally {
@@ -239,184 +630,330 @@ function App() {
     try {
       await signOut(auth);
     } catch (error) {
-      console.error("Logout error:", error);
+      console.error(
+        "Logout error:",
+        error
+      );
     }
   }
 
-  // Active people
-  const activePeople = people.filter(
-    (person) => person.trim() !== ""
-  );
+  // ==================================================
+  // ACTIVE PEOPLE
+  // ==================================================
 
-  // Month expenses
-  const monthExpenses = useMemo(() => {
-    return expenses.filter((expense) =>
-      expense.date?.startsWith(selectedMonth)
+  const activePeople =
+    people.filter(
+      (person) =>
+        person.trim() !== ""
     );
-  }, [expenses, selectedMonth]);
 
-  // Total
-  const totalExpense = useMemo(() => {
-    return monthExpenses.reduce(
-      (total, expense) =>
-        total + Number(expense.amount || 0),
-      0
-    );
-  }, [monthExpenses]);
+  // ==================================================
+  // MONTH EXPENSES
+  // ==================================================
 
-  // Paid amounts
-  const paidAmounts = useMemo(() => {
-    const result = {};
+  const monthExpenses =
+    useMemo(() => {
+      return expenses.filter(
+        (expense) =>
+          expense.date?.startsWith(
+            selectedMonth
+          )
+      );
+    }, [
+      expenses,
+      selectedMonth,
+    ]);
 
-    activePeople.forEach((person) => {
-      result[person] = 0;
-    });
+  // ==================================================
+  // TOTAL
+  // ==================================================
 
-    monthExpenses.forEach((expense) => {
-      if (result[expense.paidBy] !== undefined) {
-        result[expense.paidBy] += Number(
-          expense.amount || 0
-        );
-      }
-    });
+  const totalExpense =
+    useMemo(() => {
+      return monthExpenses.reduce(
+        (total, expense) =>
+          total +
+          Number(
+            expense.amount || 0
+          ),
+        0
+      );
+    }, [monthExpenses]);
 
-    return result;
-  }, [monthExpenses, activePeople]);
+  // ==================================================
+  // PAID AMOUNTS
+  // ==================================================
 
-  // Equal share
+  const paidAmounts =
+    useMemo(() => {
+      const result = {};
+
+      activePeople.forEach(
+        (person) => {
+          result[person] = 0;
+        }
+      );
+
+      monthExpenses.forEach(
+        (expense) => {
+          if (
+            result[
+              expense.paidBy
+            ] !== undefined
+          ) {
+            result[
+              expense.paidBy
+            ] += Number(
+              expense.amount || 0
+            );
+          }
+        }
+      );
+
+      return result;
+    }, [
+      monthExpenses,
+      activePeople,
+    ]);
+
+  // ==================================================
+  // EQUAL SHARE
+  // ==================================================
+
   const equalShare =
     activePeople.length > 0
-      ? totalExpense / activePeople.length
+      ? totalExpense /
+        activePeople.length
       : 0;
 
-  // Balance
-  const balances = useMemo(() => {
-    const result = {};
+  // ==================================================
+  // BALANCES
+  // ==================================================
 
-    activePeople.forEach((person) => {
-      result[person] =
-        (paidAmounts[person] || 0) - equalShare;
-    });
+  const balances =
+    useMemo(() => {
+      const result = {};
 
-    return result;
-  }, [activePeople, paidAmounts, equalShare]);
+      activePeople.forEach(
+        (person) => {
+          result[person] =
+            (paidAmounts[
+              person
+            ] || 0) -
+            equalShare;
+        }
+      );
 
-  // Available months
-  const availableMonths = useMemo(() => {
-    const months = expenses
-      .map((expense) => expense.date?.slice(0, 7))
-      .filter(Boolean);
+      return result;
+    }, [
+      activePeople,
+      paidAmounts,
+      equalShare,
+    ]);
 
-    const uniqueMonths = [...new Set(months)];
+  // ==================================================
+  // AVAILABLE MONTHS
+  // ==================================================
 
-    const currentMonth = new Date()
-      .toISOString()
-      .slice(0, 7);
+  const availableMonths =
+    useMemo(() => {
+      const months = expenses
+        .map((expense) =>
+          expense.date?.slice(
+            0,
+            7
+          )
+        )
+        .filter(Boolean);
 
-    if (!uniqueMonths.includes(currentMonth)) {
-      uniqueMonths.push(currentMonth);
-    }
+      const uniqueMonths = [
+        ...new Set(months),
+      ];
 
-    return uniqueMonths.sort().reverse();
-  }, [expenses]);
+      const currentMonth =
+        new Date()
+          .toISOString()
+          .slice(0, 7);
 
-  // Change room
+      if (
+        !uniqueMonths.includes(
+          currentMonth
+        )
+      ) {
+        uniqueMonths.push(
+          currentMonth
+        );
+      }
+
+      return uniqueMonths
+        .sort()
+        .reverse();
+    }, [expenses]);
+
+  // ==================================================
+  // CHANGE ROOM
+  // ==================================================
+
   function joinRoom(e) {
     e.preventDefault();
 
-    const cleanCode = roomInput.trim();
+    const cleanCode =
+      roomInput.trim();
 
-    if (!/^[A-Za-z0-9]{6,12}$/.test(cleanCode)) {
+    if (
+      !/^[A-Za-z0-9]{6,12}$/.test(
+        cleanCode
+      )
+    ) {
       alert(
-        "Room Code exactly 6-12 digits ka hona chahiye."
+        "Room Code exactly 6-12 characters ka hona chahiye."
       );
+
       return;
     }
 
     setRoomCode(cleanCode);
 
     setSelectedMonth(
-      new Date().toISOString().slice(0, 7)
+      new Date()
+        .toISOString()
+        .slice(0, 7)
     );
   }
 
-  // Add person
+  // ==================================================
+  // ADD PERSON
+  // ==================================================
+
   async function addPerson() {
     if (!roomExists) return;
 
     if (people.length >= 3) {
-      alert("Maximum 3 people allowed.");
+      alert(
+        "Maximum 3 people allowed."
+      );
+
       return;
     }
 
-    const updatedPeople = [...people, ""];
+    const updatedPeople = [
+      ...people,
+      "",
+    ];
 
     setPeople(updatedPeople);
 
     if (user) {
       try {
         await setDoc(
-          doc(db, "rooms", roomCode),
+          doc(
+            db,
+            "rooms",
+            roomCode
+          ),
           {
-            people: updatedPeople,
+            people:
+              updatedPeople,
           },
-          { merge: true }
+          {
+            merge: true,
+          }
         );
       } catch (error) {
-        console.error("Add person error:", error);
-        alert("Person add nahi ho paya.");
+        console.error(
+          "Add person error:",
+          error
+        );
+
+        alert(
+          "Person add nahi ho paya."
+        );
       }
     }
   }
 
-  // Remove third person
-  async function removePerson(index) {
+  // ==================================================
+  // REMOVE PERSON
+  // ==================================================
+
+  async function removePerson(
+    index
+  ) {
     if (!roomExists) return;
 
     if (index < 2) return;
 
-    const updatedPeople = people.filter(
-      (_, personIndex) => personIndex !== index
-    );
+    const updatedPeople =
+      people.filter(
+        (_, personIndex) =>
+          personIndex !== index
+      );
 
     setPeople(updatedPeople);
 
     if (user) {
       try {
         await setDoc(
-          doc(db, "rooms", roomCode),
+          doc(
+            db,
+            "rooms",
+            roomCode
+          ),
           {
-            people: updatedPeople,
+            people:
+              updatedPeople,
           },
-          { merge: true }
+          {
+            merge: true,
+          }
         );
       } catch (error) {
         console.error(
           "Remove person error:",
           error
         );
-        alert("Person remove nahi ho paya.");
+
+        alert(
+          "Person remove nahi ho paya."
+        );
       }
     }
   }
 
-  // Update person
-  async function updatePerson(index, value) {
+  // ==================================================
+  // UPDATE PERSON
+  // ==================================================
+
+  async function updatePerson(
+    index,
+    value
+  ) {
     if (!roomExists) return;
 
-    const updatedPeople = [...people];
-    updatedPeople[index] = value;
+    const updatedPeople = [
+      ...people,
+    ];
+
+    updatedPeople[index] =
+      value;
 
     setPeople(updatedPeople);
 
     if (user) {
       try {
         await setDoc(
-          doc(db, "rooms", roomCode),
+          doc(
+            db,
+            "rooms",
+            roomCode
+          ),
           {
-            people: updatedPeople,
+            people:
+              updatedPeople,
           },
-          { merge: true }
+          {
+            merge: true,
+          }
         );
       } catch (error) {
         console.error(
@@ -427,19 +964,32 @@ function App() {
     }
   }
 
-  // Add / update expense
+  // ==================================================
+  // SAVE EXPENSE
+  // ==================================================
+
   async function saveExpense(e) {
     e.preventDefault();
 
-    const numericAmount = Number(amount);
+    const numericAmount =
+      Number(amount);
 
     if (!roomExists) {
-      alert("Pehle valid room connect karo.");
+      alert(
+        "Pehle valid room connect karo."
+      );
+
       return;
     }
 
-    if (!numericAmount || numericAmount <= 0) {
-      alert("Valid amount enter karo.");
+    if (
+      !numericAmount ||
+      numericAmount <= 0
+    ) {
+      alert(
+        "Valid amount enter karo."
+      );
+
       return;
     }
 
@@ -447,6 +997,7 @@ function App() {
       alert(
         "Kis cheez ka payment hai wo enter karo."
       );
+
       return;
     }
 
@@ -454,11 +1005,15 @@ function App() {
       alert(
         "Payment karne wala person select karo."
       );
+
       return;
     }
 
     if (!date) {
-      alert("Date select karo.");
+      alert(
+        "Date select karo."
+      );
+
       return;
     }
 
@@ -466,26 +1021,59 @@ function App() {
       alert(
         "Firebase connection ready nahi hai."
       );
+
       return;
     }
 
     try {
+      const expenseData = {
+        amount:
+          numericAmount,
+
+        description:
+          description.trim(),
+
+        paidBy:
+          activePeople[
+            paidBy
+          ],
+
+        date,
+      };
+
       if (editingId) {
-        const expenseRef = doc(
-          db,
-          "rooms",
-          roomCode,
-          "expenses",
-          editingId
+        const expenseRef =
+          doc(
+            db,
+            "rooms",
+            roomCode,
+            "expenses",
+            editingId
+          );
+
+        await updateDoc(
+          expenseRef,
+          {
+            ...expenseData,
+
+            updatedAt:
+              new Date().toISOString(),
+          }
         );
 
-        await updateDoc(expenseRef, {
-          amount: numericAmount,
-          description: description.trim(),
-          paidBy: activePeople[paidBy],
-          date,
-          updatedAt: new Date().toISOString(),
-        });
+        await createExpenseNotification(
+          {
+            type: "updated",
+
+            expense:
+              expenseData,
+
+            message:
+              `✏️ ${expenseData.paidBy} ne ₹${numericAmount.toFixed(
+                2
+              )} ka "${expenseData.description}" payment update kiya.`,
+          }
+        );
       } else {
         await addDoc(
           collection(
@@ -495,12 +1083,27 @@ function App() {
             "expenses"
           ),
           {
-            amount: numericAmount,
-            description: description.trim(),
-            paidBy: activePeople[paidBy],
-            date,
-            createdAt: new Date().toISOString(),
-            createdBy: user.uid,
+            ...expenseData,
+
+            createdAt:
+              new Date().toISOString(),
+
+            createdBy:
+              user.uid,
+          }
+        );
+
+        await createExpenseNotification(
+          {
+            type: "added",
+
+            expense:
+              expenseData,
+
+            message:
+              `➕ ${expenseData.paidBy} ne ₹${numericAmount.toFixed(
+                2
+              )} ka "${expenseData.description}" payment add kiya.`,
           }
         );
       }
@@ -509,30 +1112,52 @@ function App() {
       setDescription("");
       setEditingId(null);
       setPaidBy(0);
-      setSelectedMonth(date.slice(0, 7));
+
+      setSelectedMonth(
+        date.slice(0, 7)
+      );
     } catch (error) {
       console.error(
         "Expense save error:",
         error
       );
+
       alert(
         "Payment save nahi ho paya."
       );
     }
   }
 
-  // Start editing
+  // ==================================================
+  // EDIT EXPENSE
+  // ==================================================
+
   function editExpense(expense) {
-    const personIndex = activePeople.indexOf(
-      expense.paidBy
+    const personIndex =
+      activePeople.indexOf(
+        expense.paidBy
+      );
+
+    setEditingId(
+      expense.id
     );
 
-    setEditingId(expense.id);
-    setAmount(String(expense.amount));
-    setDescription(expense.description);
-    setDate(expense.date);
+    setAmount(
+      String(expense.amount)
+    );
+
+    setDescription(
+      expense.description
+    );
+
+    setDate(
+      expense.date
+    );
+
     setPaidBy(
-      personIndex >= 0 ? personIndex : 0
+      personIndex >= 0
+        ? personIndex
+        : 0
     );
 
     setSelectedMonth(
@@ -545,26 +1170,44 @@ function App() {
     });
   }
 
-  // Cancel edit
+  // ==================================================
+  // CANCEL EDIT
+  // ==================================================
+
   function cancelEdit() {
     setEditingId(null);
     setAmount("");
     setDescription("");
     setPaidBy(0);
+
     setDate(
-      new Date().toISOString().split("T")[0]
+      new Date()
+        .toISOString()
+        .split("T")[0]
     );
   }
 
-  // Delete expense
-  async function deleteExpense(id) {
-    const confirmDelete = window.confirm(
-      "Kya aap ye expense delete karna chahte ho?"
-    );
+  // ==================================================
+  // DELETE EXPENSE
+  // ==================================================
+
+  async function deleteExpense(
+    id
+  ) {
+    const confirmDelete =
+      window.confirm(
+        "Kya aap ye expense delete karna chahte ho?"
+      );
 
     if (!confirmDelete) return;
 
     try {
+      const expenseToDelete =
+        expenses.find(
+          (expense) =>
+            expense.id === id
+        );
+
       await deleteDoc(
         doc(
           db,
@@ -575,6 +1218,24 @@ function App() {
         )
       );
 
+      if (expenseToDelete) {
+        await createExpenseNotification(
+          {
+            type: "deleted",
+
+            expense:
+              expenseToDelete,
+
+            message:
+              `🗑️ ${expenseToDelete.paidBy} ne ₹${Number(
+                expenseToDelete.amount
+              ).toFixed(
+                2
+              )} ka "${expenseToDelete.description}" payment delete kiya.`,
+          }
+        );
+      }
+
       if (editingId === id) {
         cancelEdit();
       }
@@ -583,17 +1244,24 @@ function App() {
         "Delete error:",
         error
       );
+
       alert(
         "Payment delete nahi ho paya."
       );
     }
   }
 
-  // Format date
-  function formatDate(dateString) {
-    const dateObject = new Date(
-      `${dateString}T00:00:00`
-    );
+  // ==================================================
+  // FORMAT DATE
+  // ==================================================
+
+  function formatDate(
+    dateString
+  ) {
+    const dateObject =
+      new Date(
+        `${dateString}T00:00:00`
+      );
 
     return dateObject.toLocaleDateString(
       "en-IN",
@@ -605,11 +1273,17 @@ function App() {
     );
   }
 
-  // Format month
-  function formatMonth(monthString) {
-    const dateObject = new Date(
-      `${monthString}-01T00:00:00`
-    );
+  // ==================================================
+  // FORMAT MONTH
+  // ==================================================
+
+  function formatMonth(
+    monthString
+  ) {
+    const dateObject =
+      new Date(
+        `${monthString}-01T00:00:00`
+      );
 
     return dateObject.toLocaleDateString(
       "en-IN",
@@ -620,26 +1294,35 @@ function App() {
     );
   }
 
-  // Direct settlements
+  // ==================================================
+  // SETTLEMENT
+  // ==================================================
+
   function getSettlements() {
     const creditors = [];
     const debtors = [];
 
-    activePeople.forEach((person) => {
-      const balance = balances[person] || 0;
+    activePeople.forEach(
+      (person) => {
+        const balance =
+          balances[person] || 0;
 
-      if (balance > 0.01) {
-        creditors.push({
-          person,
-          amount: balance,
-        });
-      } else if (balance < -0.01) {
-        debtors.push({
-          person,
-          amount: Math.abs(balance),
-        });
+        if (balance > 0.01) {
+          creditors.push({
+            person,
+            amount: balance,
+          });
+        } else if (
+          balance < -0.01
+        ) {
+          debtors.push({
+            person,
+            amount:
+              Math.abs(balance),
+          });
+        }
       }
-    });
+    );
 
     const settlements = [];
 
@@ -647,34 +1330,58 @@ function App() {
     let creditorIndex = 0;
 
     while (
-      debtorIndex < debtors.length &&
-      creditorIndex < creditors.length
+      debtorIndex <
+        debtors.length &&
+      creditorIndex <
+        creditors.length
     ) {
-      const debtor = debtors[debtorIndex];
+      const debtor =
+        debtors[debtorIndex];
+
       const creditor =
-        creditors[creditorIndex];
+        creditors[
+          creditorIndex
+        ];
 
-      const amount = Math.min(
-        debtor.amount,
-        creditor.amount
-      );
+      const settlementAmount =
+        Math.min(
+          debtor.amount,
+          creditor.amount
+        );
 
-      if (amount > 0.01) {
+      if (
+        settlementAmount >
+        0.01
+      ) {
         settlements.push({
-          from: debtor.person,
-          to: creditor.person,
-          amount,
+          from:
+            debtor.person,
+
+          to:
+            creditor.person,
+
+          amount:
+            settlementAmount,
         });
       }
 
-      debtor.amount -= amount;
-      creditor.amount -= amount;
+      debtor.amount -=
+        settlementAmount;
 
-      if (debtor.amount <= 0.01) {
+      creditor.amount -=
+        settlementAmount;
+
+      if (
+        debtor.amount <=
+        0.01
+      ) {
         debtorIndex++;
       }
 
-      if (creditor.amount <= 0.01) {
+      if (
+        creditor.amount <=
+        0.01
+      ) {
         creditorIndex++;
       }
     }
@@ -682,11 +1389,12 @@ function App() {
     return settlements;
   }
 
-  const settlements = getSettlements();
+  const settlements =
+    getSettlements();
 
-  // --------------------------------------------------
-  // LOGIN / SIGNUP SCREEN
-  // --------------------------------------------------
+  // ==================================================
+  // LOGIN / SIGNUP
+  // ==================================================
 
   if (!user) {
     return (
@@ -700,7 +1408,9 @@ function App() {
         >
           <div className="section-title">
             <div>
-              <h1>Daily Split</h1>
+              <h1>
+                Daily Split
+              </h1>
 
               <p className="hint">
                 Secure login required
@@ -708,33 +1418,48 @@ function App() {
             </div>
           </div>
 
-          <form onSubmit={handleAuth}>
+          <form
+            onSubmit={handleAuth}
+          >
             <div>
-              <label>Email / Gmail</label>
+              <label>
+                Email / Gmail
+              </label>
 
               <input
                 type="email"
                 placeholder="your@gmail.com"
                 value={email}
                 onChange={(e) =>
-                  setEmail(e.target.value)
+                  setEmail(
+                    e.target.value
+                  )
                 }
                 autoComplete="email"
               />
             </div>
 
-            <div style={{ marginTop: "15px" }}>
-              <label>Password</label>
+            <div
+              style={{
+                marginTop: "15px",
+              }}
+            >
+              <label>
+                Password
+              </label>
 
               <input
                 type="password"
                 placeholder="Minimum 6 characters"
                 value={password}
                 onChange={(e) =>
-                  setPassword(e.target.value)
+                  setPassword(
+                    e.target.value
+                  )
                 }
                 autoComplete={
-                  authMode === "login"
+                  authMode ===
+                  "login"
                     ? "current-password"
                     : "new-password"
                 }
@@ -755,12 +1480,17 @@ function App() {
             <button
               className="add-button"
               type="submit"
-              disabled={authLoading}
-              style={{ marginTop: "18px" }}
+              disabled={
+                authLoading
+              }
+              style={{
+                marginTop: "18px",
+              }}
             >
               {authLoading
                 ? "Please wait..."
-                : authMode === "login"
+                : authMode ===
+                  "login"
                 ? "Login"
                 : "Create Account"}
             </button>
@@ -772,15 +1502,21 @@ function App() {
               marginTop: "18px",
             }}
           >
-            {authMode === "login" ? (
+            {authMode ===
+            "login" ? (
               <p>
                 Account nahi hai?{" "}
                 <button
                   type="button"
                   className="small-button"
                   onClick={() => {
-                    setAuthMode("signup");
-                    setAuthError("");
+                    setAuthMode(
+                      "signup"
+                    );
+
+                    setAuthError(
+                      ""
+                    );
                   }}
                 >
                   Create Account
@@ -788,13 +1524,19 @@ function App() {
               </p>
             ) : (
               <p>
-                Account already hai?{" "}
+                Account already
+                hai?{" "}
                 <button
                   type="button"
                   className="small-button"
                   onClick={() => {
-                    setAuthMode("login");
-                    setAuthError("");
+                    setAuthMode(
+                      "login"
+                    );
+
+                    setAuthError(
+                      ""
+                    );
                   }}
                 >
                   Login
@@ -807,62 +1549,227 @@ function App() {
     );
   }
 
-  // --------------------------------------------------
+  // ==================================================
   // MAIN APP
-  // --------------------------------------------------
+  // ==================================================
 
   return (
     <div className="app">
       <header className="header">
         <div>
-          <h1>Daily Split</h1>
+          <h1>
+            Daily Split
+          </h1>
 
           <p>
-            Daily payments record karo,
-            month-end par automatic hisaab.
+            Daily payments record
+            karo, month-end par
+            automatic hisaab.
           </p>
 
           <small>
-            Logged in: {user.email}
+            Logged in:{" "}
+            {user.email}
           </small>
         </div>
 
         <div
           style={{
             display: "flex",
-            flexDirection: "column",
-            alignItems: "flex-end",
+            flexDirection:
+              "column",
+            alignItems:
+              "flex-end",
             gap: "8px",
           }}
         >
           <div className="total-box">
-            <span>Monthly Total</span>
+            <span>
+              Monthly Total
+            </span>
 
             <strong>
-              ₹{totalExpense.toFixed(2)}
+              ₹
+              {totalExpense.toFixed(
+                2
+              )}
             </strong>
           </div>
 
           <button
             type="button"
             className="small-button"
-            onClick={handleLogout}
+            onClick={
+              handleLogout
+            }
           >
             Logout
           </button>
         </div>
       </header>
 
-      {/* ROOM */}
+      {/* ==================================================
+          NOTIFICATIONS
+          ================================================== */}
 
       <section className="card">
         <div className="section-title">
           <div>
-            <h2>Shared Room</h2>
+            <h2>
+              🔔 Notifications
+            </h2>
 
             <p className="hint">
-              Same Room Code dono phones mein
-              use karo.
+              Payment add, edit ya
+              delete hone par
+              update milega.
+            </p>
+          </div>
+
+          <span className="count">
+            {unreadNotifications.length >
+            0
+              ? `● ${unreadNotifications.length} New`
+              : "○ No New"}
+          </span>
+        </div>
+
+        {!notificationEnabled && (
+          <button
+            type="button"
+            className="add-button"
+            onClick={
+              enableNotifications
+            }
+          >
+            🔔 Enable Notifications
+          </button>
+        )}
+
+        {notificationEnabled && (
+          <p
+            style={{
+              color: "#16803c",
+              fontWeight: "600",
+            }}
+          >
+            ✓ Browser notifications
+            enabled
+          </p>
+        )}
+
+        <button
+          type="button"
+          className="small-button"
+          style={{
+            width: "100%",
+            marginTop: "10px",
+          }}
+          onClick={() => {
+            setShowNotifications(
+              !showNotifications
+            );
+
+            if (!showNotifications) {
+              markNotificationsAsRead();
+            }
+          }}
+        >
+          {showNotifications
+            ? "Hide Notifications"
+            : `View Notifications${
+                unreadNotifications.length >
+                0
+                  ? ` (${unreadNotifications.length})`
+                  : ""
+              }`}
+        </button>
+
+        {showNotifications && (
+          <div
+            style={{
+              marginTop: "15px",
+            }}
+          >
+            {notifications.length ===
+            0 ? (
+              <p className="empty">
+                Abhi koi notification
+                nahi hai.
+              </p>
+            ) : (
+              <div
+                className="expense-list"
+              >
+                {notifications
+                  .slice(0, 20)
+                  .map(
+                    (
+                      notification
+                    ) => (
+                      <div
+                        className="expense"
+                        key={
+                          notification.id
+                        }
+                      >
+                        <div className="expense-info">
+                          <strong>
+                            {
+                              notification.message
+                            }
+                          </strong>
+
+                          <small>
+                            {notification.type ===
+                            "added"
+                              ? "New payment"
+                              : notification.type ===
+                                "updated"
+                              ? "Payment updated"
+                              : "Payment deleted"}
+                          </small>
+                        </div>
+
+                        <div className="expense-right">
+                          <span
+                            style={{
+                              fontSize:
+                                "12px",
+                            }}
+                          >
+                            ₹
+                            {Number(
+                              notification.amount ||
+                                0
+                            ).toFixed(
+                              2
+                            )}
+                          </span>
+                        </div>
+                      </div>
+                    )
+                  )}
+              </div>
+            )}
+          </div>
+        )}
+      </section>
+
+      {/* ==================================================
+          ROOM
+          ================================================== */}
+
+      <section className="card">
+        <div className="section-title">
+          <div>
+            <h2>
+              Shared Room
+            </h2>
+
+            <p className="hint">
+              Same Room Code dono
+              phones mein use karo.
             </p>
           </div>
 
@@ -873,10 +1780,14 @@ function App() {
           </span>
         </div>
 
-        <form onSubmit={joinRoom}>
+        <form
+          onSubmit={joinRoom}
+        >
           <div className="form-grid">
             <div>
-              <label>Room Code</label>
+              <label>
+                Room Code
+              </label>
 
               <input
                 type="text"
@@ -896,7 +1807,9 @@ function App() {
             </div>
 
             <div>
-              <label>Current Room</label>
+              <label>
+                Current Room
+              </label>
 
               <div className="month-summary">
                 <span>
@@ -932,10 +1845,13 @@ function App() {
 
       {!roomExists ? (
         <section className="card">
-          <h2>Room Not Connected</h2>
+          <h2>
+            Room Not Connected
+          </h2>
 
           <p className="empty">
-            Valid existing room code enter karo.
+            Valid existing room code
+            enter karo.
           </p>
         </section>
       ) : (
@@ -945,19 +1861,25 @@ function App() {
           <section className="card">
             <div className="section-title">
               <div>
-                <h2>People</h2>
+                <h2>
+                  People
+                </h2>
 
                 <p className="hint">
-                  Default 2 people. Zarurat par
-                  3rd add karo.
+                  Default 2 people.
+                  Zarurat par 3rd
+                  add karo.
                 </p>
               </div>
 
-              {people.length < 3 && (
+              {people.length <
+                3 && (
                 <button
                   type="button"
                   className="small-button"
-                  onClick={addPerson}
+                  onClick={
+                    addPerson
+                  }
                 >
                   + Add Person
                 </button>
@@ -965,37 +1887,48 @@ function App() {
             </div>
 
             <div className="people-grid">
-              {people.map((person, index) => (
-                <div
-                  className="person-input"
-                  key={index}
-                >
-                  <input
-                    value={person}
-                    placeholder={`Person ${
-                      index + 1
-                    }`}
-                    onChange={(e) =>
-                      updatePerson(
-                        index,
-                        e.target.value
-                      )
-                    }
-                  />
-
-                  {index >= 2 && (
-                    <button
-                      type="button"
-                      className="remove-person"
-                      onClick={() =>
-                        removePerson(index)
+              {people.map(
+                (
+                  person,
+                  index
+                ) => (
+                  <div
+                    className="person-input"
+                    key={index}
+                  >
+                    <input
+                      value={person}
+                      placeholder={`Person ${
+                        index + 1
+                      }`}
+                      onChange={(
+                        e
+                      ) =>
+                        updatePerson(
+                          index,
+                          e.target
+                            .value
+                        )
                       }
-                    >
-                      ×
-                    </button>
-                  )}
-                </div>
-              ))}
+                    />
+
+                    {index >=
+                      2 && (
+                      <button
+                        type="button"
+                        className="remove-person"
+                        onClick={() =>
+                          removePerson(
+                            index
+                          )
+                        }
+                      >
+                        ×
+                      </button>
+                    )}
+                  </div>
+                )
+              )}
             </div>
           </section>
 
@@ -1008,10 +1941,16 @@ function App() {
                 : "Add Payment"}
             </h2>
 
-            <form onSubmit={saveExpense}>
+            <form
+              onSubmit={
+                saveExpense
+              }
+            >
               <div className="form-grid">
                 <div>
-                  <label>Amount</label>
+                  <label>
+                    Amount
+                  </label>
 
                   <input
                     type="number"
@@ -1021,7 +1960,8 @@ function App() {
                     value={amount}
                     onChange={(e) =>
                       setAmount(
-                        e.target.value
+                        e.target
+                          .value
                       )
                     }
                   />
@@ -1029,16 +1969,20 @@ function App() {
 
                 <div>
                   <label>
-                    Payment kis cheez ka?
+                    Payment kis
+                    cheez ka?
                   </label>
 
                   <input
                     type="text"
                     placeholder="Grocery"
-                    value={description}
+                    value={
+                      description
+                    }
                     onChange={(e) =>
                       setDescription(
-                        e.target.value
+                        e.target
+                          .value
                       )
                     }
                   />
@@ -1048,7 +1992,8 @@ function App() {
               <div className="form-grid">
                 <div>
                   <label>
-                    Kisne pay kiya?
+                    Kisne pay
+                    kiya?
                   </label>
 
                   <select
@@ -1056,7 +2001,8 @@ function App() {
                     onChange={(e) =>
                       setPaidBy(
                         Number(
-                          e.target.value
+                          e.target
+                            .value
                         )
                       )
                     }
@@ -1067,8 +2013,12 @@ function App() {
                         index
                       ) => (
                         <option
-                          key={person}
-                          value={index}
+                          key={
+                            person
+                          }
+                          value={
+                            index
+                          }
                         >
                           {person}
                         </option>
@@ -1078,14 +2028,17 @@ function App() {
                 </div>
 
                 <div>
-                  <label>Date</label>
+                  <label>
+                    Date
+                  </label>
 
                   <input
                     type="date"
                     value={date}
                     onChange={(e) =>
                       setDate(
-                        e.target.value
+                        e.target
+                          .value
                       )
                     }
                   />
@@ -1107,7 +2060,8 @@ function App() {
                   className="small-button"
                   style={{
                     width: "100%",
-                    marginTop: "10px",
+                    marginTop:
+                      "10px",
                   }}
                   onClick={
                     cancelEdit
@@ -1123,13 +2077,18 @@ function App() {
 
           <section className="card month-card">
             <div>
-              <label>Month</label>
+              <label>
+                Month
+              </label>
 
               <select
-                value={selectedMonth}
+                value={
+                  selectedMonth
+                }
                 onChange={(e) =>
                   setSelectedMonth(
-                    e.target.value
+                    e.target
+                      .value
                   )
                 }
               >
@@ -1156,7 +2115,10 @@ function App() {
               </span>
 
               <strong>
-                ₹{totalExpense.toFixed(2)}
+                ₹
+                {totalExpense.toFixed(
+                  2
+                )}
               </strong>
             </div>
           </section>
@@ -1165,10 +2127,14 @@ function App() {
 
           <section className="card">
             <div className="section-title">
-              <h2>Payments</h2>
+              <h2>
+                Payments
+              </h2>
 
               <span className="count">
-                {monthExpenses.length}{" "}
+                {
+                  monthExpenses.length
+                }{" "}
                 payment
                 {monthExpenses.length !==
                 1
@@ -1180,8 +2146,9 @@ function App() {
             {monthExpenses.length ===
             0 ? (
               <p className="empty">
-                Is month me abhi koi
-                payment nahi hai.
+                Is month me abhi
+                koi payment nahi
+                hai.
               </p>
             ) : (
               <div className="expense-list">
@@ -1189,7 +2156,9 @@ function App() {
                   (expense) => (
                     <div
                       className="expense"
-                      key={expense.id}
+                      key={
+                        expense.id
+                      }
                     >
                       <div className="expense-info">
                         <strong>
@@ -1277,7 +2246,9 @@ function App() {
               </div>
 
               <div className="summary-row">
-                <span>People</span>
+                <span>
+                  People
+                </span>
 
                 <strong>
                   {
@@ -1320,11 +2291,15 @@ function App() {
                   return (
                     <div
                       className="balance"
-                      key={person}
+                      key={
+                        person
+                      }
                     >
                       <div>
                         <strong>
-                          {person}
+                          {
+                            person
+                          }
                         </strong>
 
                         <small>
@@ -1376,9 +2351,10 @@ function App() {
                 </strong>
 
                 <span>
-                  Is month kisi ko
-                  kisi ko paise dene
-                  ki zarurat nahi.
+                  Is month kisi
+                  ko kisi ko paise
+                  dene ki zarurat
+                  nahi.
                 </span>
               </div>
             ) : (
@@ -1390,7 +2366,9 @@ function App() {
                   ) => (
                     <div
                       className="settlement"
-                      key={index}
+                      key={
+                        index
+                      }
                     >
                       <div>
                         <strong>
