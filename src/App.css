@@ -1,0 +1,587 @@
+* {
+  box-sizing: border-box;
+}
+
+:root {
+  font-family: Inter, Arial, sans-serif;
+  color: #171717;
+  background: #f4f5f7;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  background: #f4f5f7;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+.app {
+  width: min(900px, 94%);
+  margin: 28px auto 50px;
+}
+
+/* =========================
+   HEADER
+========================= */
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.header h1 {
+  margin: 0;
+  font-size: 32px;
+  letter-spacing: -0.7px;
+}
+
+.header p {
+  margin: 7px 0 0;
+  color: #707070;
+  font-size: 14px;
+}
+
+.total-box {
+  min-width: 165px;
+  padding: 16px 18px;
+  background: #171717;
+  color: white;
+  border-radius: 16px;
+}
+
+.total-box span {
+  display: block;
+  color: #bdbdbd;
+  font-size: 12px;
+  margin-bottom: 5px;
+}
+
+.total-box strong {
+  display: block;
+  font-size: 24px;
+}
+
+/* =========================
+   CARD
+========================= */
+
+.card {
+  background: #ffffff;
+  border: 1px solid #e4e4e4;
+  border-radius: 18px;
+  padding: 20px;
+  margin-bottom: 16px;
+}
+
+.card h2 {
+  margin: 0 0 16px;
+  font-size: 19px;
+  letter-spacing: -0.2px;
+}
+
+.card h3 {
+  margin: 0;
+}
+
+/* =========================
+   SECTION TITLE
+========================= */
+
+.section-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 15px;
+  margin-bottom: 16px;
+}
+
+.section-title h2 {
+  margin-bottom: 4px;
+}
+
+.hint {
+  margin: 0;
+  color: #777;
+  font-size: 13px;
+}
+
+.count {
+  color: #777;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+/* =========================
+   PEOPLE
+========================= */
+
+.people-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.person-input {
+  position: relative;
+}
+
+.person-input input {
+  padding-right: 42px;
+}
+
+.remove-person {
+  position: absolute;
+  right: 7px;
+  top: 7px;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 9px;
+  background: #eeeeee;
+  color: #555;
+  font-size: 20px;
+  line-height: 1;
+}
+
+.remove-person:hover {
+  background: #dedede;
+}
+
+.small-button {
+  padding: 9px 13px;
+  border: 1px solid #d2d2d2;
+  background: #ffffff;
+  color: #171717;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.small-button:hover {
+  background: #f3f3f3;
+}
+
+/* =========================
+   INPUTS
+========================= */
+
+label {
+  display: block;
+  margin-bottom: 7px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #333;
+}
+
+input,
+select {
+  width: 100%;
+  height: 46px;
+  padding: 0 13px;
+  border: 1px solid #c9c9c9;
+  border-radius: 11px;
+  outline: none;
+  background: #ffffff;
+  color: #171717;
+  font-size: 15px;
+  transition: border-color 0.15s ease,
+              box-shadow 0.15s ease;
+}
+
+input::placeholder {
+  color: #888;
+  opacity: 1;
+}
+
+input:focus,
+select:focus {
+  border-color: #171717;
+  box-shadow: 0 0 0 3px #eeeeee;
+}
+
+select option {
+  color: #171717;
+  background: #ffffff;
+}
+
+/* =========================
+   FORM
+========================= */
+
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-bottom: 15px;
+}
+
+.add-button {
+  width: 100%;
+  height: 48px;
+  margin-top: 2px;
+  border: 0;
+  border-radius: 12px;
+  background: #171717;
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.add-button:hover {
+  background: #2c2c2c;
+}
+
+.add-button:active {
+  transform: translateY(1px);
+}
+
+/* =========================
+   MONTH
+========================= */
+
+.month-card {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+  align-items: end;
+}
+
+.month-summary {
+  min-height: 46px;
+  padding: 9px 14px;
+  background: #f5f5f5;
+  border: 1px solid #e7e7e7;
+  border-radius: 11px;
+}
+
+.month-summary span {
+  display: block;
+  color: #707070;
+  font-size: 12px;
+}
+
+.month-summary strong {
+  display: block;
+  margin-top: 2px;
+  font-size: 20px;
+}
+
+/* =========================
+   EXPENSES
+========================= */
+
+.expense-list {
+  margin-top: -4px;
+}
+
+.expense {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  padding: 16px 0;
+  border-bottom: 1px solid #eeeeee;
+}
+
+.expense:last-child {
+  border-bottom: 0;
+  padding-bottom: 2px;
+}
+
+.expense-info {
+  min-width: 0;
+}
+
+.expense-info > strong {
+  display: block;
+  font-size: 16px;
+  margin-bottom: 5px;
+}
+
+.expense-info p {
+  margin: 0 0 4px;
+  color: #777;
+  font-size: 13px;
+}
+
+.expense-info small {
+  color: #777;
+  font-size: 13px;
+}
+
+.expense-right {
+  min-width: 100px;
+  text-align: right;
+}
+
+.expense-right > strong {
+  display: block;
+  font-size: 17px;
+  white-space: nowrap;
+}
+
+.delete-button {
+  margin-top: 8px;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: #eeeeee;
+  color: #555;
+  font-size: 12px;
+}
+
+.delete-button:hover {
+  background: #dedede;
+}
+
+.empty {
+  margin: 0;
+  padding: 25px 0 10px;
+  color: #777;
+  text-align: center;
+  font-size: 14px;
+}
+
+/* =========================
+   SUMMARY
+========================= */
+
+.summary-box {
+  overflow: hidden;
+  border: 1px solid #e7e7e7;
+  border-radius: 13px;
+}
+
+.summary-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 15px;
+  padding: 14px 15px;
+  border-bottom: 1px solid #eeeeee;
+}
+
+.summary-row:last-child {
+  border-bottom: 0;
+}
+
+.summary-row span {
+  color: #666;
+  font-size: 14px;
+}
+
+.summary-row strong {
+  font-size: 15px;
+}
+
+.sub-heading {
+  margin-top: 22px !important;
+  margin-bottom: 10px !important;
+  font-size: 15px !important;
+}
+
+/* =========================
+   BALANCE
+========================= */
+
+.balance-list {
+  border-top: 1px solid #eeeeee;
+}
+
+.balance {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 15px;
+  padding: 14px 0;
+  border-bottom: 1px solid #eeeeee;
+}
+
+.balance:last-child {
+  border-bottom: 0;
+}
+
+.balance div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.balance div strong {
+  font-size: 15px;
+}
+
+.balance small {
+  color: #777;
+  font-size: 12px;
+}
+
+.receive {
+  color: #16803c;
+}
+
+.pay {
+  color: #c62828;
+}
+
+/* =========================
+   SETTLEMENT
+========================= */
+
+.settlement-card {
+  margin-bottom: 40px;
+}
+
+.settlement-list {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.settlement {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 15px;
+  padding: 15px;
+  background: #f5f5f5;
+  border: 1px solid #e8e8e8;
+  border-radius: 12px;
+}
+
+.settlement div {
+  font-size: 15px;
+}
+
+.settlement > strong {
+  font-size: 17px;
+  white-space: nowrap;
+}
+
+.settled {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 17px;
+  background: #f3f8f4;
+  border: 1px solid #dcecdf;
+  border-radius: 12px;
+}
+
+.settled strong {
+  color: #16803c;
+}
+
+.settled span {
+  color: #666;
+  font-size: 13px;
+}
+
+/* =========================
+   MOBILE
+========================= */
+
+@media (max-width: 650px) {
+
+  .app {
+    width: 92%;
+    margin: 16px auto 35px;
+  }
+
+  .header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .header h1 {
+    font-size: 28px;
+  }
+
+  .total-box {
+    min-width: 0;
+  }
+
+  .card {
+    padding: 17px;
+    border-radius: 16px;
+  }
+
+  .people-grid,
+  .form-grid,
+  .month-card {
+    grid-template-columns: 1fr;
+  }
+
+  .section-title {
+    align-items: flex-start;
+  }
+
+  .small-button {
+    flex-shrink: 0;
+  }
+
+  .expense {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .expense-right {
+    width: 100%;
+    min-width: 0;
+    text-align: left;
+  }
+
+  .expense-right > strong {
+    font-size: 18px;
+  }
+
+  .balance {
+    align-items: flex-start;
+  }
+
+  .settlement {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 7px;
+  }
+
+  .settlement > strong {
+    font-size: 18px;
+  }
+}
+
+@media (max-width: 400px) {
+
+  .app {
+    width: 94%;
+  }
+
+  .card {
+    padding: 15px;
+  }
+
+  .section-title {
+    flex-direction: column;
+  }
+
+  .small-button {
+    width: 100%;
+  }
+
+}
