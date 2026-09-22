@@ -23,7 +23,7 @@ import {
 } from "firebase/firestore";
 
 const DEFAULT_PEOPLE = ["Anshu", "Ankita"];
-const DEFAULT_ROOM = "123456";
+const DEFAULT_ROOM = "SPLEXP02";
 
 function App() {
   const [user, setUser] = useState(null);
